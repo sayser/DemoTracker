@@ -118,12 +118,11 @@ sudo setsebool -P httpd_can_sendmail 1
 echo 'test' | mail -s 'DemoTracker mail test' you@example.com
 ```
 
-## 7. Expiry cron
+## 7. Email (no cron)
 
-```bash
-echo '*/5 * * * * nginx /usr/bin/php /opt/websites/demotracker/bin/expire-reservations.php >> /var/log/demotracker-expire.log 2>&1' | sudo tee /etc/cron.d/demotracker
-sudo chmod 644 /etc/cron.d/demotracker
-```
+PHP `mail()` sends watch-list messages when a reservation is **created** or **released**. Expired reservations are marked expired and emailed the next time **anyone loads a page** (login, dashboard, and so on). No cron job is required.
+
+Keep postfix/sendmail working. Optional: `bin/expire-reservations.php` can still be run by hand if you want to expire rows without waiting for a page view.
 
 ## 8. Firewall
 

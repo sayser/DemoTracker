@@ -18,6 +18,12 @@ final class App
 
         self::enforceIdle();
 
+        try {
+            ReservationService::processDueFromWeb();
+        } catch (Throwable $e) {
+            error_log($e->getMessage());
+        }
+
         if ($method === 'POST') {
             Csrf::requireValid();
         }

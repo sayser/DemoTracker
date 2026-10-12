@@ -372,7 +372,7 @@ final class ReservationService
             $now = Timezone::nowUtc();
             $end = Timezone::fromUtcString($row['end_utc']);
             if ($end <= $now) {
-                throw new RuntimeException('This reservation has already ended. It will expire automatically.');
+                throw new RuntimeException('This reservation has already ended. Open any page to expire it and notify watchers.');
             }
 
             $upd = $pdo->prepare(
@@ -390,6 +390,21 @@ final class ReservationService
         $owner = Auth::find((int) $full['user_id']);
         if ($full && $vm && $owner) {
             Mailer::reservationReleased($full, $vm, $owner, $actor);
+        }
+    }
+
+    public static function processDueFromWeb(): void
+    {
+        $pdo = Database::pdo();
+        $lock = $pdo->query("SELECT GET_LOCK('demotracker_expire', 0)")->fetchColumn();
+        if ((int) $lock !== 1) {
+            return;
+        }
+        try {
+            self::expireDue();
+            Auth::pruneLoginAttempts();
+        } finally {
+            $pdo->query("SELECT RELEASE_LOCK('demotracker_expire')");
         }
     }
 
