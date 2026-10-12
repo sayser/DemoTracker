@@ -7,8 +7,16 @@ final class Mailer
     public static function send(string $to, string $subject, string $body): void
     {
         global $config;
-        $fromEmail = (string) $config['app']['from_email'];
-        $fromName = (string) $config['app']['from_name'];
+        $to = Security::oneLine($to);
+        $subject = Security::oneLine($subject);
+        if (filter_var($to, FILTER_VALIDATE_EMAIL) === false) {
+            return;
+        }
+        $fromEmail = Security::oneLine((string) $config['app']['from_email']);
+        $fromName = Security::oneLine((string) $config['app']['from_name']);
+        if (filter_var($fromEmail, FILTER_VALIDATE_EMAIL) === false) {
+            return;
+        }
         $encodedFrom = function_exists('mb_encode_mimeheader')
             ? mb_encode_mimeheader($fromName, 'UTF-8')
             : $fromName;
@@ -16,7 +24,6 @@ final class Mailer
             'From: ' . $encodedFrom . ' <' . $fromEmail . '>',
             'MIME-Version: 1.0',
             'Content-Type: text/plain; charset=UTF-8',
-            'X-Mailer: Demo Reservation',
         ];
         @mail($to, $subject, $body, implode("\r\n", $headers));
     }

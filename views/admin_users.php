@@ -22,7 +22,7 @@
     </label>
     <label>
         Initial password
-        <input type="password" name="password" required minlength="8" autocomplete="new-password">
+        <input type="password" name="password" required minlength="12" maxlength="128" autocomplete="new-password">
     </label>
     <label>
         Role
@@ -59,7 +59,7 @@
             </label>
             <label>
                 Reset password
-                <input type="password" name="password" minlength="8" placeholder="Leave blank to keep" autocomplete="new-password">
+                <input type="password" name="password" minlength="12" maxlength="128" placeholder="Leave blank to keep" autocomplete="new-password">
             </label>
             <button type="submit" class="btn small">Save</button>
         </form>

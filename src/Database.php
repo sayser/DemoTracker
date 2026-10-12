@@ -14,12 +14,15 @@ final class Database
         }
 
         $db = $config['db'];
+        $name = (string) $db['name'];
+        if (!preg_match('/^[A-Za-z0-9_]+$/', $name)) {
+            throw new RuntimeException('Invalid database name.');
+        }
         $dsn = sprintf(
-            'mysql:host=%s;port=%d;dbname=%s;charset=%s',
-            $db['host'],
+            'mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4',
+            $db['host'] === 'localhost' ? 'localhost' : '127.0.0.1',
             (int) $db['port'],
-            $db['name'],
-            $db['charset']
+            $name
         );
 
         self::$pdo = new PDO($dsn, $db['user'], $db['pass'], [

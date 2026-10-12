@@ -54,10 +54,14 @@ final class WatchService
 
             $delV = $pdo->prepare('DELETE FROM watch_vm WHERE user_id = ?');
             $delV->execute([$userId]);
+            $existing = [];
+            foreach ($pdo->query('SELECT id FROM demo_vms')->fetchAll(PDO::FETCH_COLUMN) as $id) {
+                $existing[(int) $id] = true;
+            }
             $insV = $pdo->prepare('INSERT INTO watch_vm (user_id, vm_id) VALUES (?, ?)');
             foreach (array_unique($vmIds) as $vmId) {
                 $id = (int) $vmId;
-                if ($id > 0) {
+                if ($id > 0 && isset($existing[$id])) {
                     $insV->execute([$userId, $id]);
                 }
             }

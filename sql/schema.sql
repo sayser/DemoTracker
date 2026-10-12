@@ -1,5 +1,6 @@
--- Demo Reservation — MySQL 8 / MariaDB-compatible schema
--- Run as a privileged user, then grant the app account access.
+-- Demo Reservation schema only (tables).
+-- Do not create MySQL login accounts here. Create the database user by hand
+-- using the steps in deploy/README.md, then grant DML on this database.
 
 CREATE DATABASE IF NOT EXISTS demo_reservation
   CHARACTER SET utf8mb4
@@ -16,7 +17,7 @@ CREATE TABLE IF NOT EXISTS users (
   active TINYINT(1) NOT NULL DEFAULT 1,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY uq_users_username (username),
-  KEY idx_users_email (email)
+  UNIQUE KEY uq_users_email (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS demo_vms (

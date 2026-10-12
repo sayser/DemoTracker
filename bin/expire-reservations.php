@@ -12,6 +12,7 @@ require dirname(__DIR__) . '/src/bootstrap.php';
 
 try {
     $n = ReservationService::expireDue();
+    Auth::pruneLoginAttempts();
     fwrite(STDOUT, date('c') . " expired {$n} reservation(s)\n");
 } catch (Throwable $e) {
     fwrite(STDERR, date('c') . ' ' . $e->getMessage() . "\n");

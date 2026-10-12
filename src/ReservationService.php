@@ -28,10 +28,12 @@ final class ReservationService
 
     public static function createVm(string $name, string $description, string $ipHostname): int
     {
-        $name = trim($name);
-        if ($name === '' || strlen($name) > 64) {
+        $name = self::cleanText($name, 64);
+        if ($name === '') {
             throw new InvalidArgumentException('VM name is required (max 64 characters).');
         }
+        $description = self::cleanText($description, 500);
+        $ipHostname = self::cleanText($ipHostname, 255);
         try {
             $stmt = Database::pdo()->prepare(
                 'INSERT INTO demo_vms (name, description, ip_hostname, active) VALUES (?, ?, ?, 1)'
@@ -48,10 +50,12 @@ final class ReservationService
 
     public static function updateVm(int $id, string $name, string $description, string $ipHostname, bool $active): void
     {
-        $name = trim($name);
-        if ($name === '' || strlen($name) > 64) {
+        $name = self::cleanText($name, 64);
+        if ($name === '') {
             throw new InvalidArgumentException('VM name is required (max 64 characters).');
         }
+        $description = self::cleanText($description, 500);
+        $ipHostname = self::cleanText($ipHostname, 255);
         try {
             $stmt = Database::pdo()->prepare(
                 'UPDATE demo_vms SET name = ?, description = ?, ip_hostname = ?, active = ? WHERE id = ?'
@@ -260,6 +264,8 @@ final class ReservationService
         string $durationLabel,
         string $notes
     ): int {
+        $notes = self::cleanText($notes, 500);
+        $durationLabel = self::cleanText($durationLabel, 64);
         self::assertWindow($startUtc, $endUtc);
         $now = Timezone::nowUtc();
         if ($startUtc < $now->sub(new DateInterval('PT2M'))) {
@@ -507,5 +513,14 @@ final class ReservationService
         if ($stmt->fetch()) {
             throw new RuntimeException('That Demo VM is already reserved for part of this time window.');
         }
+    }
+
+    private static function cleanText(string $value, int $max): string
+    {
+        $value = trim(Security::oneLine($value));
+        if (strlen($value) > $max) {
+            throw new InvalidArgumentException('That field is too long.');
+        }
+        return $value;
     }
 }

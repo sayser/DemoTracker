@@ -21,9 +21,7 @@ function flashes(): array
 
 function redirect(string $path, int $code = 302): never
 {
-    if (!str_starts_with($path, 'http')) {
-        $path = url($path);
-    }
+    $path = url(Security::internalPath($path));
     header('Location: ' . $path, true, $code);
     exit;
 }
@@ -129,6 +127,15 @@ function add_duration(DateTimeImmutable $startUtc, int $amount, string $unit): D
         'week', 'weeks' => 'P' . ($amount * 7) . 'D',
         default => throw new InvalidArgumentException('Duration must be hours, days, or weeks.'),
     };
+    if ($amount > 21 && in_array($unit, ['day', 'days'], true)) {
+        throw new InvalidArgumentException('Reservations cannot be longer than 3 weeks.');
+    }
+    if ($amount > 3 && in_array($unit, ['week', 'weeks'], true)) {
+        throw new InvalidArgumentException('Reservations cannot be longer than 3 weeks.');
+    }
+    if ($amount > 504 && in_array($unit, ['hour', 'hours'], true)) {
+        throw new InvalidArgumentException('Reservations cannot be longer than 3 weeks.');
+    }
     $startApp = $startUtc->setTimezone(Timezone::appTz());
     return $startApp->add(new DateInterval($spec))->setTimezone(Timezone::utcTz());
 }
@@ -136,13 +143,12 @@ function add_duration(DateTimeImmutable $startUtc, int $amount, string $unit): D
 function render(string $template, array $data = []): void
 {
     global $config;
-    $data['config'] = $config;
     $data['appTitle'] = $config['app']['title'];
     $data['user'] = $data['user'] ?? Auth::user();
     $data['flashes'] = flashes();
     $data['csrfField'] = Csrf::field();
     extract($data, EXTR_SKIP);
-    $viewFile = VIEWS_DIR . '/' . $template . '.php';
+    $viewFile = Security::allowedView($template);
     ob_start();
     require $viewFile;
     $content = ob_get_clean();

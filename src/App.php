@@ -9,6 +9,15 @@ final class App
         $method = request_method();
         $path = current_path();
 
+        if (!in_array($method, ['GET', 'POST'], true)) {
+            http_response_code(405);
+            header('Allow: GET, POST');
+            echo 'Method not allowed';
+            return;
+        }
+
+        self::enforceIdle();
+
         if ($method === 'POST') {
             Csrf::requireValid();
         }
@@ -38,6 +47,28 @@ final class App
             $method === 'POST' && $path === '/admin/vms/update' => self::adminVmsUpdate(),
             default => Http::notFound(),
         };
+    }
+
+    private static function enforceIdle(): void
+    {
+        global $config;
+        if (empty($_SESSION['user_id'])) {
+            return;
+        }
+        $minutes = max(5, (int) ($config['app']['session_idle_minutes'] ?? 15));
+        $last = (int) ($_SESSION['_last_activity'] ?? time());
+        if (time() - $last > $minutes * 60) {
+            Auth::logout();
+            session_start();
+            flash('error', 'Your session timed out. Sign in again.');
+            redirect('/login');
+        }
+        $_SESSION['_last_activity'] = time();
+    }
+
+    private static function fail(Throwable $e): string
+    {
+        return Security::publicMessage($e);
     }
 
     private static function loginForm(): void
@@ -184,7 +215,7 @@ final class App
             flash('success', 'Reservation created. Watchers were notified by email.');
             redirect('/vms/' . $vmId);
         } catch (Throwable $e) {
-            flash('error', $e->getMessage());
+            flash('error', self::fail($e));
             redirect('/reserve?vm=' . $vmId);
         }
     }
@@ -197,7 +228,7 @@ final class App
             ReservationService::release($id, $user);
             flash('success', 'Reservation released. Watchers were notified by email.');
         } catch (Throwable $e) {
-            flash('error', $e->getMessage());
+            flash('error', self::fail($e));
         }
         $back = post_string('back', '/');
         if (!str_starts_with($back, '/') || str_starts_with($back, '//')) {
@@ -240,7 +271,7 @@ final class App
             $row = ReservationService::findReservation($id);
             redirect($row ? '/vms/' . (int) $row['vm_id'] : '/');
         } catch (Throwable $e) {
-            flash('error', $e->getMessage());
+            flash('error', self::fail($e));
             redirect('/extend?id=' . $id);
         }
     }
@@ -276,8 +307,12 @@ final class App
             $vmIds = [];
         }
         $vmIds = array_map('intval', $vmIds);
-        WatchService::save((int) $user['id'], $global, $vmIds);
-        flash('success', 'Watch list saved. You will get email when matching reservations are created, expire, or are released early.');
+        try {
+            WatchService::save((int) $user['id'], $global, $vmIds);
+            flash('success', 'Watch list saved. You will get email when matching reservations are created, expire, or are released early.');
+        } catch (Throwable $e) {
+            flash('error', self::fail($e));
+        }
         redirect('/watch');
     }
 
@@ -302,7 +337,7 @@ final class App
             flash('success', 'Password updated.');
             redirect('/');
         } catch (Throwable $e) {
-            flash('error', $e->getMessage());
+            flash('error', self::fail($e));
             redirect('/password');
         }
     }
@@ -329,7 +364,7 @@ final class App
             );
             flash('success', 'User created.');
         } catch (Throwable $e) {
-            flash('error', $e->getMessage());
+            flash('error', self::fail($e));
         }
         redirect('/admin/users');
     }
@@ -349,7 +384,7 @@ final class App
             );
             flash('success', 'User updated.');
         } catch (Throwable $e) {
-            flash('error', $e->getMessage());
+            flash('error', self::fail($e));
         }
         redirect('/admin/users');
     }
@@ -375,7 +410,7 @@ final class App
             );
             flash('success', 'Demo VM added.');
         } catch (Throwable $e) {
-            flash('error', $e->getMessage());
+            flash('error', self::fail($e));
         }
         redirect('/admin/vms');
     }
@@ -393,7 +428,7 @@ final class App
             );
             flash('success', 'Demo VM updated.');
         } catch (Throwable $e) {
-            flash('error', $e->getMessage());
+            flash('error', self::fail($e));
         }
         redirect('/admin/vms');
     }

@@ -4,18 +4,20 @@ Target layout:
 
 ```text
 /opt/websites/demotracker/
-  public/                 nginx document root
+  public/                 nginx document root (only this directory is web-visible)
   src/
   views/
-  config/config.php       copied from config.example.php (not in git)
-  sql/schema.sql
+  config/config.php       in git; replace ENTER_SECURE_PASSWORD before use
+  sql/schema.sql          tables only — no MySQL users
   bin/
   deploy/
 ```
 
+The application will **refuse to start** until `config/config.php` uses a real MySQL password (not `ENTER_SECURE_PASSWORD`).
+
 ## 1. Packages
 
-PHP 8.1+ is required (`php-fpm`, `php-mysqlnd`, `php-mbstring`). RHEL 8 AppStream PHP is often older — use a 8.1+ module or Remi.
+PHP 8.1+ is required (`php-fpm`, `php-mysqlnd`, `php-mbstring`).
 
 ```bash
 sudo dnf install -y nginx mysql-server postfix git
@@ -24,54 +26,72 @@ php -v
 sudo systemctl enable --now nginx php-fpm mysqld postfix
 ```
 
-If `mysqld` is not the service name, try `mariadb` or `mysql`.
+If `mysqld` is not the service name, try `mariadb` or `mysql`. Confirm php-fpm listens on `unix:/run/php-fpm/www.sock` in `/etc/php-fpm.d/www.conf`.
 
-Confirm the php-fpm listen socket in `/etc/php-fpm.d/www.conf` matches `deploy/nginx.conf` (usually `unix:/run/php-fpm/www.sock`).
+Recommended php-fpm settings (`/etc/php.ini` or the pool):
+
+```ini
+expose_php = Off
+display_errors = Off
+display_startup_errors = Off
+log_errors = On
+allow_url_include = Off
+cgi.fix_pathinfo = 0
+session.cookie_httponly = 1
+session.use_strict_mode = 1
+```
 
 ## 2. Application files
 
 ```bash
 sudo mkdir -p /opt/websites
 sudo git clone https://github.com/sayser/DemoTracker.git /opt/websites/demotracker
-sudo cp /opt/websites/demotracker/config/config.example.php /opt/websites/demotracker/config/config.php
 sudo chown -R nginx:nginx /opt/websites/demotracker
 sudo chmod 640 /opt/websites/demotracker/config/config.php
 ```
 
-If `nginx` is not the php-fpm user, use that user instead (`apache` on some images).
+If php-fpm does not run as `nginx`, use that user instead.
 
-## 3. MySQL schema and app user
+## 3. MySQL: schema, then the application user
 
-MySQL is on the same host. Run as root:
+MySQL stays on this host (`127.0.0.1`). Load **schema only** first. This file creates the `demo_reservation` database and tables. It does **not** create MySQL logins.
 
 ```bash
 sudo mysql < /opt/websites/demotracker/sql/schema.sql
 ```
 
-That creates database `demo_reservation` and all tables.
+Create the application database user yourself. Use a long unique password (this is the value for `ENTER_SECURE_PASSWORD`). Limit the account to localhost and grant table data rights only (no GRANT OPTION, no SUPER, no FILE):
 
 ```bash
-sudo mysql -e "
-CREATE USER IF NOT EXISTS 'demo_reserv'@'127.0.0.1' IDENTIFIED BY 'choose_a_strong_password';
-CREATE USER IF NOT EXISTS 'demo_reserv'@'localhost' IDENTIFIED BY 'choose_a_strong_password';
+sudo mysql
+```
+
+```sql
+CREATE USER 'demo_reserv'@'127.0.0.1' IDENTIFIED BY 'ENTER_SECURE_PASSWORD';
+CREATE USER 'demo_reserv'@'localhost' IDENTIFIED BY 'ENTER_SECURE_PASSWORD';
 GRANT SELECT, INSERT, UPDATE, DELETE ON demo_reservation.* TO 'demo_reserv'@'127.0.0.1';
 GRANT SELECT, INSERT, UPDATE, DELETE ON demo_reservation.* TO 'demo_reserv'@'localhost';
 FLUSH PRIVILEGES;
-"
+EXIT;
 ```
 
-Edit `/opt/websites/demotracker/config/config.php`:
+Replace `ENTER_SECURE_PASSWORD` in both SQL and in `/opt/websites/demotracker/config/config.php`:
 
-- `db.pass` — the password you set above
-- `db.host` — `127.0.0.1`
-- `app.base_url` — `http://YOUR_VM_IP` or your hostname
+- `db.pass` — same password as the MySQL user
+- `db.host` — must stay `127.0.0.1` or `localhost`
+- `app.base_url` — `https://your-hostname` (or `http://YOUR_VM_IP` until TLS is on)
 - `app.from_email` — a local address sendmail will accept
-- `app.https` — `false` until TLS is on nginx, then `true`
+- `app.https` — `true` when nginx terminates TLS; `false` only for initial HTTP testing
+- `app.trust_proxy` — leave `false` unless a trusted reverse proxy sets `X-Forwarded-Proto`
 
-## 4. First admin
+Do not grant `CREATE`, `DROP`, `ALTER`, or `PROCESS` to `demo_reserv`. Bind MySQL to localhost in `/etc/my.cnf` (`bind-address = 127.0.0.1`).
+
+## 4. First site admin (application user, not MySQL)
+
+Passwords must be 12–128 characters with uppercase, lowercase, and a number.
 
 ```bash
-sudo -u nginx php /opt/websites/demotracker/bin/create-admin.php admin you@example.com 'a-strong-password'
+sudo -u nginx php /opt/websites/demotracker/bin/create-admin.php admin you@example.com 'YourAdminPass1'
 ```
 
 ## 5. nginx
@@ -81,7 +101,7 @@ sudo cp /opt/websites/demotracker/deploy/nginx.conf /etc/nginx/conf.d/demotracke
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-The sample vhost listens on port 80 and sets `root` to `/opt/websites/demotracker/public`. Change `server_name` from `_` to your hostname when you have one.
+Document root is `/opt/websites/demotracker/public`. PHP sources under `src/`, `config/`, and `sql/` are outside the docroot.
 
 SELinux (if enforcing):
 
@@ -92,19 +112,13 @@ sudo setsebool -P httpd_can_network_connect_db 1
 sudo setsebool -P httpd_can_sendmail 1
 ```
 
-If nginx cannot talk to the php-fpm socket, check `/var/log/nginx/error.log` and the pool `listen.owner`.
-
 ## 6. sendmail / postfix
-
-The app uses PHP `mail()`. Test:
 
 ```bash
 echo 'test' | mail -s 'DemoTracker mail test' you@example.com
 ```
 
 ## 7. Expiry cron
-
-Every five minutes, due reservations become `expired` and watchers are emailed.
 
 ```bash
 echo '*/5 * * * * nginx /usr/bin/php /opt/websites/demotracker/bin/expire-reservations.php >> /var/log/demotracker-expire.log 2>&1' | sudo tee /etc/cron.d/demotracker
@@ -118,13 +132,13 @@ sudo firewall-cmd --permanent --add-service=http
 sudo firewall-cmd --reload
 ```
 
-Open the site at `http://YOUR_VM_IP/`, sign in as the admin you created, add Demo VMs, then create a standard user.
+Open `http://YOUR_VM_IP/`, sign in as the admin from step 4, add Demo VMs, then create standard users.
 
-Later updates:
+Updates:
 
 ```bash
 cd /opt/websites/demotracker
 sudo -u nginx git pull
 ```
 
-`config/config.php` is gitignored, so pull will not overwrite credentials.
+After `git pull`, confirm `config/config.php` still has your real DB password if the tracked file changed.

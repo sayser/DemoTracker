@@ -46,9 +46,9 @@ final class Auth
         );
         $stmt->execute([$username]);
         $row = $stmt->fetch();
-        $ok = $row
-            && (int) $row['active'] === 1
-            && password_verify($password, $row['password_hash']);
+        $hash = is_array($row) ? (string) $row['password_hash'] : '$2y$10$usesomesillystringfore7wipjs77ZbXX/K0UKec3.YfAD.';
+        $verified = password_verify($password, $hash);
+        $ok = $row && (int) $row['active'] === 1 && $verified;
 
         if (!$ok) {
             self::recordAttempt($ip, $username);
@@ -58,6 +58,7 @@ final class Auth
         session_regenerate_id(true);
         $_SESSION['user_id'] = (int) $row['id'];
         $_SESSION['_csrf'] = bin2hex(random_bytes(32));
+        $_SESSION['_last_activity'] = time();
         return 'ok';
     }
 
@@ -82,10 +83,10 @@ final class Auth
             $stmt = Database::pdo()->prepare(
                 'INSERT INTO users (username, email, password_hash, role, active) VALUES (?, ?, ?, ?, 1)'
             );
-            $stmt->execute([$username, $email, password_hash($password, PASSWORD_DEFAULT), $role]);
+            $stmt->execute([$username, $email, password_hash($password, Security::passwordAlgo()), $role]);
         } catch (PDOException $e) {
             if ((string) $e->getCode() === '23000') {
-                throw new RuntimeException('That username is already taken.');
+                throw new RuntimeException('That username or email is already in use.');
             }
             throw $e;
         }
@@ -117,7 +118,7 @@ final class Auth
             $stmt = Database::pdo()->prepare(
                 'UPDATE users SET email = ?, role = ?, active = ?, password_hash = ? WHERE id = ?'
             );
-            $stmt->execute([$email, $role, $active ? 1 : 0, password_hash($newPassword, PASSWORD_DEFAULT), $id]);
+            $stmt->execute([$email, $role, $active ? 1 : 0, password_hash($newPassword, Security::passwordAlgo()), $id]);
         } else {
             $stmt = Database::pdo()->prepare(
                 'UPDATE users SET email = ?, role = ?, active = ? WHERE id = ?'
@@ -136,7 +137,10 @@ final class Auth
         }
         self::assertPassword($next);
         $upd = Database::pdo()->prepare('UPDATE users SET password_hash = ? WHERE id = ?');
-        $upd->execute([password_hash($next, PASSWORD_DEFAULT), $userId]);
+        session_regenerate_id(true);
+        $_SESSION['_csrf'] = bin2hex(random_bytes(32));
+        $_SESSION['_last_activity'] = time();
+        $upd->execute([password_hash($next, Security::passwordAlgo()), $userId]);
     }
 
     public static function find(int $id): ?array
@@ -165,7 +169,8 @@ final class Auth
 
     public static function assertEmail(string $email): void
     {
-        if (filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
+        $email = Security::oneLine($email);
+        if (filter_var($email, FILTER_VALIDATE_EMAIL) === false || strlen($email) > 255) {
             throw new InvalidArgumentException('A valid email address is required.');
         }
     }
@@ -179,9 +184,20 @@ final class Auth
 
     public static function assertPassword(string $password): void
     {
-        if (strlen($password) < 8) {
-            throw new InvalidArgumentException('Password must be at least 8 characters.');
+        $len = strlen($password);
+        if ($len < 12 || $len > 128) {
+            throw new InvalidArgumentException('Password must be 12 to 128 characters.');
         }
+        if (!preg_match('/[A-Z]/', $password) || !preg_match('/[a-z]/', $password) || !preg_match('/[0-9]/', $password)) {
+            throw new InvalidArgumentException('Password must include uppercase, lowercase, and a number.');
+        }
+    }
+
+    public static function pruneLoginAttempts(): void
+    {
+        $cutoff = Timezone::nowUtc()->sub(new DateInterval('P7D'));
+        $stmt = Database::pdo()->prepare('DELETE FROM login_attempts WHERE attempted_at < ?');
+        $stmt->execute([Timezone::utcSql($cutoff)]);
     }
 
     private static function assertNotLastAdmin(int $exceptId): void

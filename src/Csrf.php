@@ -30,7 +30,7 @@ final class Csrf
         if (!self::verify(is_string($token) ? $token : null)) {
             http_response_code(400);
             flash('error', 'Your session expired. Please try again.');
-            redirect($_SERVER['HTTP_REFERER'] ?? '/');
+            redirect('/');
         }
     }
 }
