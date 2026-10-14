@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS demo_vms (
   name VARCHAR(64) NOT NULL,
   description TEXT NULL,
   ip_hostname VARCHAR(255) NULL,
+  url VARCHAR(500) NULL,
   active TINYINT(1) NOT NULL DEFAULT 1,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY uq_demo_vms_name (name)

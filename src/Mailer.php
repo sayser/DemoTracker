@@ -88,7 +88,10 @@ final class Mailer
         $lines[] = '';
         $lines[] = 'Demo VM: ' . $vm['name'];
         if (!empty($vm['ip_hostname'])) {
-            $lines[] = 'IP / hostname: ' . $vm['ip_hostname'];
+            $lines[] = 'IP: ' . $vm['ip_hostname'];
+        }
+        if (!empty($vm['url'])) {
+            $lines[] = 'URL: ' . $vm['url'];
         }
         $lines[] = 'Reserved by: ' . $owner['username'] . ' (' . $owner['email'] . ')';
         $lines[] = 'Start: ' . $start;

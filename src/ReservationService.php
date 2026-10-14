@@ -6,7 +6,7 @@ final class ReservationService
 {
     public static function listVms(bool $activeOnly = true): array
     {
-        $sql = 'SELECT id, name, description, ip_hostname, active, created_at FROM demo_vms';
+        $sql = 'SELECT id, name, description, ip_hostname, url, active, created_at FROM demo_vms';
         if ($activeOnly) {
             $sql .= ' WHERE active = 1';
         }
@@ -16,7 +16,7 @@ final class ReservationService
 
     public static function findVm(int $id, bool $activeOnly = false): ?array
     {
-        $sql = 'SELECT id, name, description, ip_hostname, active, created_at FROM demo_vms WHERE id = ?';
+        $sql = 'SELECT id, name, description, ip_hostname, url, active, created_at FROM demo_vms WHERE id = ?';
         if ($activeOnly) {
             $sql .= ' AND active = 1';
         }
@@ -26,7 +26,7 @@ final class ReservationService
         return $row ?: null;
     }
 
-    public static function createVm(string $name, string $description, string $ipHostname): int
+    public static function createVm(string $name, string $description, string $ipHostname, string $url = ''): int
     {
         $name = self::cleanText($name, 64);
         if ($name === '') {
@@ -34,11 +34,17 @@ final class ReservationService
         }
         $description = self::cleanText($description, 500);
         $ipHostname = self::cleanText($ipHostname, 255);
+        $url = self::cleanUrl($url);
         try {
             $stmt = Database::pdo()->prepare(
-                'INSERT INTO demo_vms (name, description, ip_hostname, active) VALUES (?, ?, ?, 1)'
+                'INSERT INTO demo_vms (name, description, ip_hostname, url, active) VALUES (?, ?, ?, ?, 1)'
             );
-            $stmt->execute([$name, $description !== '' ? $description : null, $ipHostname !== '' ? $ipHostname : null]);
+            $stmt->execute([
+                $name,
+                $description !== '' ? $description : null,
+                $ipHostname !== '' ? $ipHostname : null,
+                $url !== '' ? $url : null,
+            ]);
         } catch (PDOException $e) {
             if ((string) $e->getCode() === '23000') {
                 throw new RuntimeException('A Demo VM with that name already exists.');
@@ -48,7 +54,7 @@ final class ReservationService
         return (int) Database::pdo()->lastInsertId();
     }
 
-    public static function updateVm(int $id, string $name, string $description, string $ipHostname, bool $active): void
+    public static function updateVm(int $id, string $name, string $description, string $ipHostname, bool $active, string $url = ''): void
     {
         $name = self::cleanText($name, 64);
         if ($name === '') {
@@ -56,14 +62,16 @@ final class ReservationService
         }
         $description = self::cleanText($description, 500);
         $ipHostname = self::cleanText($ipHostname, 255);
+        $url = self::cleanUrl($url);
         try {
             $stmt = Database::pdo()->prepare(
-                'UPDATE demo_vms SET name = ?, description = ?, ip_hostname = ?, active = ? WHERE id = ?'
+                'UPDATE demo_vms SET name = ?, description = ?, ip_hostname = ?, url = ?, active = ? WHERE id = ?'
             );
             $stmt->execute([
                 $name,
                 $description !== '' ? $description : null,
                 $ipHostname !== '' ? $ipHostname : null,
+                $url !== '' ? $url : null,
                 $active ? 1 : 0,
                 $id,
             ]);
@@ -277,7 +285,7 @@ final class ReservationService
         $pdo = Database::pdo();
         $pdo->beginTransaction();
         try {
-            $lock = $pdo->prepare('SELECT id, name, description, ip_hostname, active FROM demo_vms WHERE id = ? FOR UPDATE');
+            $lock = $pdo->prepare('SELECT id, name, description, ip_hostname, url, active FROM demo_vms WHERE id = ? FOR UPDATE');
             $lock->execute([$vmId]);
             $vm = $lock->fetch();
             if (!$vm || (int) $vm['active'] !== 1) {
@@ -540,6 +548,18 @@ final class ReservationService
         $value = trim(Security::oneLine($value));
         if (strlen($value) > $max) {
             throw new InvalidArgumentException('That field is too long.');
+        }
+        return $value;
+    }
+
+    private static function cleanUrl(string $value): string
+    {
+        $value = self::cleanText($value, 500);
+        if ($value === '') {
+            return '';
+        }
+        if (!preg_match('#^https?://#i', $value) || filter_var($value, FILTER_VALIDATE_URL) === false) {
+            throw new InvalidArgumentException('URL must start with http:// or https://');
         }
         return $value;
     }

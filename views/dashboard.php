@@ -40,6 +40,9 @@ $tab = $tab ?? 'vms';
                 <?php if (!empty($vm['ip_hostname'])): ?>
                     <p class="mono"><?= e($vm['ip_hostname']) ?></p>
                 <?php endif; ?>
+                <?php if (!empty($vm['url'])): ?>
+                    <p><a href="<?= e($vm['url']) ?>" rel="noopener noreferrer" target="_blank"><?= e($vm['url']) ?></a></p>
+                <?php endif; ?>
                 <?php if (!empty($vm['description'])): ?>
                     <p><?= e($vm['description']) ?></p>
                 <?php endif; ?>

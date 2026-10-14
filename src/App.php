@@ -412,7 +412,8 @@ final class App
             ReservationService::createVm(
                 post_string('name'),
                 post_string('description'),
-                post_string('ip_hostname')
+                post_string('ip_hostname'),
+                post_string('url')
             );
             flash('success', 'Demo VM added.');
         } catch (Throwable $e) {
@@ -430,7 +431,8 @@ final class App
                 post_string('name'),
                 post_string('description'),
                 post_string('ip_hostname'),
-                post_string('active', '0') === '1'
+                post_string('active', '0') === '1',
+                post_string('url')
             );
             flash('success', 'Demo VM updated.');
         } catch (Throwable $e) {

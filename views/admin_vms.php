@@ -4,7 +4,6 @@
 <div class="page-head">
     <div>
         <h1>Demo VMs</h1>
-        <p class="muted">Name, description, and IP or hostname only. Disabling a VM hides it from new bookings and keeps history.</p>
     </div>
 </div>
 
@@ -16,8 +15,12 @@
         <input type="text" name="name" required maxlength="64" placeholder="Demo01">
     </label>
     <label>
-        IP / hostname
+        IP
         <input type="text" name="ip_hostname" maxlength="255" placeholder="10.0.0.21">
+    </label>
+    <label class="wide">
+        URL
+        <input type="url" name="url" maxlength="500" placeholder="https://demo01.example.com">
     </label>
     <label class="wide">
         Description
@@ -36,8 +39,12 @@
                 <input type="text" name="name" required maxlength="64" value="<?= e($vm['name']) ?>">
             </label>
             <label>
-                IP / hostname
+                IP
                 <input type="text" name="ip_hostname" maxlength="255" value="<?= e((string) $vm['ip_hostname']) ?>">
+            </label>
+            <label class="wide">
+                URL
+                <input type="url" name="url" maxlength="500" value="<?= e((string) ($vm['url'] ?? '')) ?>" placeholder="https://">
             </label>
             <label class="wide">
                 Description
