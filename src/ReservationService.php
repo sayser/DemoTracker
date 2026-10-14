@@ -475,21 +475,23 @@ final class ReservationService
 
     public static function humanDuration(DateTimeImmutable $start, DateTimeImmutable $end): string
     {
+        $startApp = $start->setTimezone(Timezone::appTz());
+        $endApp = $end->setTimezone(Timezone::appTz());
+        $diff = $startApp->diff($endApp);
+        if ($diff->invert === 1) {
+            throw new InvalidArgumentException('End time must be after start time.');
+        }
+        if ($diff->d === 0 && $diff->h === 0 && $diff->i === 0 && $diff->y === 0 && $diff->m >= 1) {
+            return duration_label($diff->m, 'month');
+        }
         $seconds = $end->getTimestamp() - $start->getTimestamp();
         if ($seconds % 604800 === 0) {
-            $n = intdiv($seconds, 604800);
-            return duration_label($n, 'week');
+            return duration_label(intdiv($seconds, 604800), 'week');
         }
         if ($seconds % 86400 === 0) {
-            $n = intdiv($seconds, 86400);
-            return duration_label($n, 'day');
+            return duration_label(intdiv($seconds, 86400), 'day');
         }
-        if ($seconds % 3600 === 0) {
-            $n = intdiv($seconds, 3600);
-            return duration_label($n, 'hour');
-        }
-        $hours = max(1, (int) round($seconds / 3600));
-        return duration_label($hours, 'hour');
+        return duration_label(max(1, (int) round($seconds / 86400)), 'day');
     }
 
     public static function assertWindow(DateTimeImmutable $start, DateTimeImmutable $end): void
@@ -498,12 +500,15 @@ final class ReservationService
         if ($end <= $start) {
             throw new InvalidArgumentException('End time must be after start time.');
         }
-        $days = (int) ($config['app']['max_duration_days'] ?? 21);
+        $months = (int) ($config['app']['max_duration_months'] ?? 6);
+        if ($months < 1) {
+            $months = 6;
+        }
         $startApp = $start->setTimezone(Timezone::appTz());
         $endApp = $end->setTimezone(Timezone::appTz());
-        $maxEnd = $startApp->add(new DateInterval('P' . $days . 'D'));
+        $maxEnd = $startApp->add(new DateInterval('P' . $months . 'M'));
         if ($endApp > $maxEnd) {
-            throw new InvalidArgumentException('Reservations cannot be longer than 3 weeks.');
+            throw new InvalidArgumentException('Reservations cannot be longer than 6 months.');
         }
     }
 

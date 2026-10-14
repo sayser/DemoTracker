@@ -26,7 +26,7 @@ php -v
 sudo systemctl enable --now nginx php-fpm mysqld postfix
 ```
 
-If `mysqld` is not the service name, try `mariadb` or `mysql`. Confirm php-fpm listens on `unix:/run/php-fpm/www.sock` in `/etc/php-fpm.d/www.conf`.
+If `mysqld` is not the service name, try `mariadb` or `mysql`. This host uses php-fpm `listen = 127.0.0.1:9000`.
 
 Recommended php-fpm settings (`/etc/php.ini` or the pool):
 
@@ -46,11 +46,11 @@ session.use_strict_mode = 1
 ```bash
 sudo mkdir -p /opt/websites
 sudo git clone https://github.com/sayser/DemoTracker.git /opt/websites/demotracker
-sudo chown -R nginx:nginx /opt/websites/demotracker
+sudo chown -R phpuser:Powertrain /opt/websites/demotracker
 sudo chmod 640 /opt/websites/demotracker/config/config.php
 ```
 
-If php-fpm does not run as `nginx`, use that user instead.
+php-fpm runs as `phpuser` (group `Powertrain`). nginx only needs to proxy to `127.0.0.1:9000`.
 
 ## 3. MySQL: schema, then the application user
 
@@ -91,7 +91,7 @@ Do not grant `CREATE`, `DROP`, `ALTER`, or `PROCESS` to `demo_reserv`. Bind MySQ
 Passwords must be 12–128 characters with uppercase, lowercase, and a number.
 
 ```bash
-sudo -u nginx php /opt/websites/demotracker/bin/create-admin.php admin you@example.com 'YourAdminPass1'
+sudo -u phpuser php /opt/websites/demotracker/bin/create-admin.php admin you@example.com 'YourAdminPass1'
 ```
 
 ## 5. nginx
@@ -137,7 +137,7 @@ Updates:
 
 ```bash
 cd /opt/websites/demotracker
-sudo -u nginx git pull
+sudo -u phpuser git pull
 ```
 
 After `git pull`, confirm `config/config.php` still has your real DB password if the tracked file changed.

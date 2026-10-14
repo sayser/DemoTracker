@@ -12,7 +12,8 @@ $isLogin = empty($user);
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= e(($title ?? '') !== '' ? $title . ' · ' . $appTitle : $appTitle) ?></title>
-    <link rel="stylesheet" href="<?= e(url('/assets/app.css')) ?>">
+    <meta name="color-scheme" content="dark">
+    <link rel="stylesheet" href="<?= e(url('/assets/app.css')) ?>?v=20261014">
 </head>
 <body>
     <div class="shell">
@@ -22,7 +23,6 @@ $isLogin = empty($user);
                     <span class="brand-mark" aria-hidden="true"></span>
                     <span>
                         <strong><?= e($appTitle) ?></strong>
-                        <small>Eastern Time · America/New_York</small>
                     </span>
                 </a>
                 <nav class="nav">
@@ -56,6 +56,6 @@ $isLogin = empty($user);
             <?= $content ?>
         </main>
     </div>
-    <script src="<?= e(url('/assets/app.js')) ?>"></script>
+    <script src="<?= e(url('/assets/app.js')) ?>?v=20261014"></script>
 </body>
 </html>

@@ -120,21 +120,24 @@ function duration_label(int $amount, string $unit): string
 
 function add_duration(DateTimeImmutable $startUtc, int $amount, string $unit): DateTimeImmutable
 {
+    if ($amount < 1) {
+        throw new InvalidArgumentException('Duration must be at least 1.');
+    }
     $unit = strtolower($unit);
     $spec = match ($unit) {
-        'hour', 'hours' => 'PT' . $amount . 'H',
         'day', 'days' => 'P' . $amount . 'D',
         'week', 'weeks' => 'P' . ($amount * 7) . 'D',
-        default => throw new InvalidArgumentException('Duration must be hours, days, or weeks.'),
+        'month', 'months' => 'P' . $amount . 'M',
+        default => throw new InvalidArgumentException('Duration must be days, weeks, or months.'),
     };
-    if ($amount > 21 && in_array($unit, ['day', 'days'], true)) {
-        throw new InvalidArgumentException('Reservations cannot be longer than 3 weeks.');
+    if ($amount > 186 && in_array($unit, ['day', 'days'], true)) {
+        throw new InvalidArgumentException('Reservations cannot be longer than 6 months.');
     }
-    if ($amount > 3 && in_array($unit, ['week', 'weeks'], true)) {
-        throw new InvalidArgumentException('Reservations cannot be longer than 3 weeks.');
+    if ($amount > 26 && in_array($unit, ['week', 'weeks'], true)) {
+        throw new InvalidArgumentException('Reservations cannot be longer than 6 months.');
     }
-    if ($amount > 504 && in_array($unit, ['hour', 'hours'], true)) {
-        throw new InvalidArgumentException('Reservations cannot be longer than 3 weeks.');
+    if ($amount > 6 && in_array($unit, ['month', 'months'], true)) {
+        throw new InvalidArgumentException('Reservations cannot be longer than 6 months.');
     }
     $startApp = $startUtc->setTimezone(Timezone::appTz());
     return $startApp->add(new DateInterval($spec))->setTimezone(Timezone::utcTz());

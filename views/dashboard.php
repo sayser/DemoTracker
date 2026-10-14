@@ -10,7 +10,6 @@ $tab = $tab ?? 'vms';
 <div class="page-head">
     <div>
         <h1><?= $tab === 'calendar' ? 'Reservation calendar' : 'Demo VMs' ?></h1>
-        <p class="muted">Current local time <?= e($nowEt) ?>. Everyone can see who reserved each machine.</p>
     </div>
     <?php if (can_reserve($user)): ?>
         <a class="btn primary" href="<?= e(url('/reserve')) ?>">Reserve a VM</a>

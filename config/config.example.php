@@ -17,7 +17,7 @@ return [
         'base_url' => 'https://demotracker.example',
         'from_email' => 'demo-reserv@example.com',
         'from_name' => 'Demo Reservation',
-        'max_duration_days' => 21,
+        'max_duration_months' => 6,
         'session_name' => 'demo_reserv_sess',
         'https' => true,
         'trust_proxy' => false,

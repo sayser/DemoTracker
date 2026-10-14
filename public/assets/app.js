@@ -5,13 +5,7 @@
   var start = document.getElementById('start_local');
   var amount = document.getElementById('amount');
   var unit = document.getElementById('unit');
-  var end = document.getElementById('end_local');
   var preview = document.getElementById('preview');
-
-  function mode() {
-    var checked = form.querySelector('input[name="mode"]:checked');
-    return checked ? checked.value : 'duration';
-  }
 
   function parseWall(value) {
     var m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value || '');
@@ -31,35 +25,28 @@
 
   function addDuration(startDate, n, kind) {
     var d = new Date(startDate.getTime());
-    if (kind === 'hours') d.setHours(d.getHours() + n);
-    else if (kind === 'weeks') d.setDate(d.getDate() + n * 7);
+    if (kind === 'weeks') d.setDate(d.getDate() + n * 7);
+    else if (kind === 'months') d.setMonth(d.getMonth() + n);
     else d.setDate(d.getDate() + n);
     return d;
   }
 
   function refresh() {
+    if (!preview || !start) return;
     var startDate = parseWall(start.value);
     if (!startDate) {
       preview.textContent = 'Choose a start time in Eastern Time.';
       return;
     }
-    var endDate;
-    if (mode() === 'end') {
-      endDate = parseWall(end.value);
-      if (!endDate) {
-        preview.textContent = 'Choose an end time, or switch to duration.';
-        return;
-      }
-    } else {
-      endDate = addDuration(startDate, parseInt(amount.value || '0', 10), unit.value);
-    }
-    var ms = endDate.getTime() - startDate.getTime();
-    var max = 21 * 24 * 60 * 60 * 1000;
-    if (ms <= 0) {
+    var n = parseInt((amount && amount.value) || '0', 10);
+    var kind = unit ? unit.value : 'weeks';
+    var endDate = addDuration(startDate, n, kind);
+    var max = addDuration(startDate, 6, 'months');
+    if (endDate.getTime() <= startDate.getTime()) {
       preview.textContent = 'End must be after start.';
       return;
     }
-    var extra = ms > max ? ' This is over the 3-week maximum.' : '';
+    var extra = endDate.getTime() > max.getTime() ? ' This is over the 6-month maximum.' : '';
     preview.textContent = 'Ends ' + formatWall(endDate) + ' ET.' + extra;
   }
 

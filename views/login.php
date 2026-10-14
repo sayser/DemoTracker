@@ -2,9 +2,7 @@
 /** @var string $appTitle */
 ?>
 <section class="login-card">
-    <p class="eyebrow">Internal lab</p>
     <h1><?= e($appTitle) ?></h1>
-    <p class="lede">Reserve a Demo VM, see who has it, and get email when a window opens.</p>
     <form method="post" action="<?= e(url('/login')) ?>" class="stack">
         <?= $csrfField ?>
         <label>

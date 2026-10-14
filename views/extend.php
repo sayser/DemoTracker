@@ -6,7 +6,7 @@ require_once VIEWS_DIR . '/partials.php';
 <div class="page-head">
     <div>
         <h1>Extend <?= e($row['vm_name']) ?></h1>
-        <p class="muted">Currently <?= window_et($row) ?>. New end must be later, stay within 3 weeks from the original start, and not overlap the next booking.</p>
+        <p class="muted">Currently <?= window_et($row) ?>. New end must be later, stay within 6 months from the original start, and not overlap the next booking.</p>
     </div>
 </div>
 <form method="post" action="<?= e(url('/extend')) ?>" class="panel stack">
